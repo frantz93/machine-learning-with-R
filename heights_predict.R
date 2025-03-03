@@ -8,7 +8,7 @@ library(tidyverse)
 library(ggplot2)
 library(caret)
 
-#recall on certains useful funtions from other libraries
+#recall on certain useful functions from other libraries
 sample(x = 10, size = 7)  #display a list of 7 random values from 0 to 10
 sample(c("M", "F"), 30, replace = TRUE) #display a list of 30 random values of either M or F
 levels(heights$sex) #check the level of a variable
@@ -16,7 +16,7 @@ typeof(b$sex)  #check the type or dimension of a variable
 typeof(b$height)
 head(b)
 
-#Now let's start with the exercice
+#Now let's start...
 
 #setting the test index, training set, and test set
 set.seed(2, sample.kind = "Rounding")
@@ -25,7 +25,7 @@ train_set <- b[-test_index, ]
 test_set <- b[test_index, ]
 
 
-#evaluating the simple algorithm based on guessing the sex of students
+#evaluating a simple algorithm based on guessing the sex of students
 set.seed(2, sample.kind = "Rounding")
 y_hat <- sample(c("Male", "Female"), length(test_index), replace = TRUE) %>% factor(levels = levels(test_set$sex))  #predicted values based on guessing
 mean(y_hat==test_set$sex) #we see that about 50,8% of the predicted values are correct when just guessing the sex. 
@@ -126,7 +126,7 @@ list(mnist)
 R.version
 
 
-#Comprehensive check (PART 1)
+#Comprehensive check (PART 1) : basic algorithm
 library(dslabs)
 library(dplyr)
 library(lubridate)
@@ -158,9 +158,149 @@ round(specificity(data = y_hat, reference = y), 2)  #report the specificity of t
 round(prop.table(table(y_hat, y), margin = 2), 2) #report the sensitivity and specificity of the prediction
 round(mean(dat$sex == "Female"), 2)   #report the prevalance of female in the sample
 
-#Comprehensive check (PART 2)
+#Comprehensive check (PART 2) : machine learning algorithm
 library(caret)
 data(iris)
 iris <- iris[-which(iris$Species=='setosa'),]
 y <- iris$Species
+head(y)
+#First we create the test and train partition
+set.seed(2, sample.kind = "Rounding")
+test_index <- createDataPartition(y, times = 1, p = 0.5, list = FALSE)
+length(test_index)
+test <- iris[test_index, ]
+train <- iris[-test_index, ]
+#now we look for the singular feature in the dataset that offer the highest overall accuracy to predict species categories
+head(train)
+summary(train)
+train %>% group_by(Species) %>% summarise(sl = mean(Sepal.Length), sw = mean(Sepal.Width), pl = mean(Petal.Length),
+                                          pw = mean(Petal.Width))
+x_sl <- seq(5, 7.9, 0.1)
+acc_seplen <- map_dbl(x_sl, function(x){
+  y_hat <- ifelse(train$Sepal.Length > x, "virginica", "versicolor") %>% factor(levels = levels(train$Species))
+  mean(y_hat == train$Species)
+})
+x_sw <- seq(2, 3.8, 0.1)
+acc_sepw <- map_dbl(x_sw, function(x){
+  y_hat <- ifelse(train$Sepal.Width > x, "virginica", "versicolor") %>% factor(levels = levels(train$Species))
+  mean(y_hat == train$Species)
+})
+x_pl <- seq(3, 6.9, 0.1)
+acc_petlen <- map_dbl(x_pl, function(x){
+  y_hat <- ifelse(train$Petal.Length > x, "virginica", "versicolor") %>% factor(levels = levels(train$Species))
+  mean(y_hat == train$Species)
+})
+x_pw <- seq(1, 2.5, 0.1)
+acc_petw <- map_dbl(x_pw, function(x){
+  y_hat <- ifelse(train$Petal.Width > x, "virginica", "versicolor") %>% factor(levels = levels(train$Species))
+  mean(y_hat == train$Species)
+})
+m <- c(m_sl = max(acc_seplen), m_sw = max(acc_sepw), m_pl = max(acc_petlen), m_pw = max(acc_petw))
+m   #the 'Petal.Length' feature bears the highest overall accuracy which is 96%
+x_pl[which.max(acc_petlen)]   #the precedent accuracy corresponds to a cutoff of 4.7
 
+#let's check the overall accuracy in the test dataset for the precedent best result
+y_hat <- ifelse(test$Petal.Length > 4.7, "virginica", "versicolor") %>% factor(levels = levels(test$Species))
+mean(y_hat == test$Species) #the accuracy is 90%
+
+#testing if overtrain case
+#we will repeat the same operations for determining accuracy levels but using the test dataset
+x_sl <- seq(5, 7.9, 0.1)
+acc_seplen <- map_dbl(x_sl, function(x){
+  y_hat <- ifelse(test$Sepal.Length > x, "virginica", "versicolor") %>% factor(levels = levels(test$Species))
+  mean(y_hat == test$Species)
+})
+x_sw <- seq(2, 3.8, 0.1)
+acc_sepw <- map_dbl(x_sw, function(x){
+  y_hat <- ifelse(test$Sepal.Width > x, "virginica", "versicolor") %>% factor(levels = levels(test$Species))
+  mean(y_hat == test$Species)
+})
+x_pl <- seq(3, 6.9, 0.1)
+acc_petlen <- map_dbl(x_pl, function(x){
+  y_hat <- ifelse(test$Petal.Length > x, "virginica", "versicolor") %>% factor(levels = levels(test$Species))
+  mean(y_hat == test$Species)
+})
+x_pw <- seq(1, 2.5, 0.1)
+acc_petw <- map_dbl(x_pw, function(x){
+  y_hat <- ifelse(test$Petal.Width > x, "virginica", "versicolor") %>% factor(levels = levels(test$Species))
+  mean(y_hat == test$Species)
+})
+m <- c(m_sl = max(acc_seplen), m_sw = max(acc_sepw), m_pl = max(acc_petlen), m_pw = max(acc_petw))
+m  #now, the 'Petal.Width' feature bears the highest overall accuracy which is 94%. Because the best feature has changed,.. 
+    #in comparison to when we use the train dataset, we can conclude that using only one feature causes overtraining the algorithm.
+x_pw[which.max(acc_petw)]   #this level of accuracy corresponds to a cutoff of 1.6
+
+#now let's perform some exploratory analysis on the dataset
+plot(iris, pch=21, bg=iris$Species)
+head(iris)
+summary(iris)
+str(iris)
+
+x_pl <- seq(3, 6.9, 0.1)
+acc_petlen <- map_dbl(x_pl, function(x){
+  y_hat <- ifelse(train$Petal.Length > x, "virginica", "versicolor") %>% factor(levels = levels(train$Species))
+  mean(y_hat == train$Species)
+})
+x_pw <- seq(1, 2.5, 0.1)
+acc_petw <- map_dbl(x_pw, function(x){
+  y_hat <- ifelse(train$Petal.Width > x, "virginica", "versicolor") %>% factor(levels = levels(train$Species))
+  mean(y_hat == train$Species)
+})
+m <- c(m_sl = max(acc_seplen), m_sw = max(acc_sepw), m_pl = max(acc_petlen), m_pw = max(acc_petw))
+m   #the 'Petal.Length' and 'Petal.Width' features bear the 96% and 94% accuracy respectively
+x_pl[which.max(acc_petlen)]   #best accuracy corresponds to a cutoff of 4.7 for "Petal.Length"
+x_pw[which.max(acc_petw)]     #best accuracy corresponds to a cutoff of 1.5 for "Petal.Width"
+
+#let's check the overall accuracy in the test dataset for the precedent best results combined together
+y_hat <- ifelse(test$Petal.Length > 4.7 | test$Petal.Width > 1.5, "virginica", "versicolor") %>% 
+  factor(levels = levels(test$Species))
+mean(y_hat == test$Species) #the new accuracy is 88%.
+
+#Comprehensive check (PART 3) : conditionnal probabilities 1
+set.seed(1, sample.kind = "Rounding") # if using R 3.6 or later
+disease <- sample(c(0,1), size=1e6, replace=TRUE, prob=c(0.98,0.02))
+test <- rep(NA, 1e6)
+test[disease==0] <- sample(c(0,1), size=sum(disease==0), replace=TRUE, prob=c(0.90,0.10))
+test[disease==1] <- sample(c(0,1), size=sum(disease==1), replace=TRUE, prob=c(0.15, 0.85))
+round(mean(test == 1), 2)
+caret::confusionMatrix(data = as.factor(test), reference = as.factor(disease), positive = "1")
+table(test, disease)
+16853/(16853+3065)
+882426/(882426+97656)
+16853/(16853+97656)
+3065/(3065+882426)
+mean(disease == 1)
+mean(disease[test==0])
+mean(disease[test==1])
+
+#Comprehensive check (PART 3) : conditionnal probabilities 2
+data(heights)
+head(heights)
+heights %>% 
+  mutate(height = round(height)) %>%
+  group_by(height) %>%
+  summarize(p = mean(sex == "Male")) %>%
+  qplot(height, p, data =.)
+heights[heights$height==50,]
+
+
+ps <- seq(0, 1, 0.1)
+heights %>% 
+  mutate(g = cut(height, quantile(height, ps), include.lowest = TRUE)) %>%
+  group_by(g) %>%
+  summarize(p = mean(sex == "Male"), height = mean(height)) %>%
+  qplot(height, p, data =.)
+
+Sigma <- 9*matrix(c(1,0.5,0.5,1), 2, 2)
+dat <- MASS::mvrnorm(n = 10000, c(69, 69), Sigma) %>%
+  data.frame() %>% setNames(c("x", "y"))
+plot(dat)
+
+ps <- seq(0, 1, 0.1)
+dat %>% 
+  mutate(g = cut(x, quantile(x, ps), include.lowest = TRUE)) %>%
+  group_by(g) %>%
+  summarize(y = mean(y), x = mean(x)) %>%
+  qplot(x, y, data =.)
+xyg <- dat %>% mutate(g = cut(x, quantile(x, ps), include.lowest = TRUE))
+View(xyg)
